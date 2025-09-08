@@ -132,78 +132,76 @@ function upsertByUrl(arr: SlimRepo[], incoming: SlimRepo) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const getArg = (name: string, def: string | null = null) =>
-    process.argv.find(a => a.startsWith(`--${name}=`))?.split("=")[1] ?? def;
+const getArg = (name: string, def: string | null = null) =>
+  process.argv.find(a => a.startsWith(`--${name}=`))?.split("=")[1] ?? def;
 
-  const type = (getArg("type", "repositories") as TypeKind);
-  const since = (getArg("since", "daily") as Since);
-  const lang = getArg("lang", null);
-  const spoken = getArg("spoken", null);
+const type = (getArg("type", "repositories") as TypeKind);
+const since = (getArg("since", "daily") as Since);
+const lang = getArg("lang", null);
+const spoken = getArg("spoken", null);
 
-  const now = new Date();
-  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const OUTPUT_FILE = path.resolve(`./${yearMonth}.json`);
+const now = new Date();
+const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+const OUTPUT_FILE = path.resolve(`./${yearMonth}.json`);
 
-  const getToday = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const getToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+(async () => {
+  let existingData: Record<string, SlimRepo[]> = {
+    rust: [],
+    typescript: [],
+    python: [],
+    go: []
+  };
+  if (fs.existsSync(OUTPUT_FILE)) {
+    try {
+      const raw = fs.readFileSync(OUTPUT_FILE, "utf-8").trim();
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.rust && parsed.typescript && parsed.python && parsed.go) {
+          existingData = parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to read existing JSON:", e);
+    }
+  }
+
+  const handleOneLanguage = async (language: string) => {
+    const data = await fetchTrending(type, { language, since, spokenLanguageCode: spoken });
+    const threshold = STAR_THRESHOLDS[language] ?? 0;
+
+    const filtered = data.filter(repo => (repo.starsSince ?? 0) >= threshold);
+
+    const today = getToday();
+    const slimList: SlimRepo[] = filtered.map(r => ({
+      url: r.url,
+      description: r.description,
+      stars: Math.trunc(r.stars),
+      starsSince: r.starsSince ?? 0,
+      dateAdded: today
+    }));
+
+    for (const item of slimList) {
+      upsertByUrl(existingData[language as keyof typeof existingData], item);
+    }
   };
 
-  (async () => {
-    let existingData: Record<string, SlimRepo[]> = {
-      rust: [],
-      typescript: [],
-      python: [],
-      go: []
-    };
-    if (fs.existsSync(OUTPUT_FILE)) {
-      try {
-        const raw = fs.readFileSync(OUTPUT_FILE, "utf-8").trim();
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.rust && parsed.typescript && parsed.python && parsed.go) {
-            existingData = parsed;
-          }
-        }
-      } catch (e) {
-        console.error("Failed to read existing JSON:", e);
-      }
+  if (lang === "all") {
+    for (const l of MULTI_LANGS) {
+      await handleOneLanguage(l);
+      await new Promise(r => setTimeout(r, 500));
     }
+  } else if (lang) {
+    await handleOneLanguage(lang);
+  }
 
-    const handleOneLanguage = async (language: string) => {
-      const data = await fetchTrending(type, { language, since, spokenLanguageCode: spoken });
-      const threshold = STAR_THRESHOLDS[language] ?? 0;
-
-      const filtered = data.filter(repo => (repo.starsSince ?? 0) >= threshold);
-
-      const today = getToday();
-      const slimList: SlimRepo[] = filtered.map(r => ({
-        url: r.url,
-        description: r.description,
-        stars: Math.trunc(r.stars),
-        starsSince: r.starsSince ?? 0,
-        dateAdded: today
-      }));
-
-      for (const item of slimList) {
-        upsertByUrl(existingData[language as keyof typeof existingData], item);
-      }
-    };
-
-    if (lang === "all") {
-      for (const l of MULTI_LANGS) {
-        await handleOneLanguage(l);
-        await new Promise(r => setTimeout(r, 500));
-      }
-    } else if (lang) {
-      await handleOneLanguage(lang);
-    }
-
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(existingData, null, 2), "utf-8");
-    console.log(`Saved results: ${OUTPUT_FILE}`);
-  })().catch(err => {
-    console.error(err);
-    process.exit(1);
-  });
-}
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(existingData, null, 2), "utf-8");
+  console.log(`Saved results: ${OUTPUT_FILE}`);
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
