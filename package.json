@@ -2,14 +2,18 @@
   "name": "github-trending-fetcher",
   "version": "1.0.0",
   "description": "A CLI tool to fetch and track trending GitHub repositories by language and timeframe.",
-  "main": "index.js",
+  "main": "main.ts",
   "keywords": [],
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "cheerio": "^1.1.2"
   },
+  "scripts": {
+    "start": "npx tsx main.ts --type=repositories --since=daily --lang=all"
+  },
   "devDependencies": {
-    "@types/node": "^24.3.1"
+    "@types/node": "^24.3.1",
+    "tsx": "^4.20.5"
   }
 }

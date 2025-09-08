@@ -26,29 +26,29 @@ npm install
 Run the following command to fetch trending repositories for a specific language:
 
 ```sh
-npx tsx trending.ts --type=repositories --since=daily --lang=typescript
+npx tsx main.ts --type=repositories --since=daily --lang=typescript
 ```
 
 ### Example Commands
 
 ```sh
 # Fetch daily trending repositories for TypeScript
-npx tsx trending.ts --type=repositories --since=daily --lang=typescript
+npx tsx main.ts --type=repositories --since=daily --lang=typescript
 
 # Fetch daily trending repositories for Go
-npx tsx trending.ts --type=repositories --since=daily --lang=go
+npx tsx main.ts --type=repositories --since=daily --lang=go
 
 # Fetch daily trending repositories for Rust
-npx tsx trending.ts --type=repositories --since=daily --lang=rust
+npx tsx main.ts --type=repositories --since=daily --lang=rust
 
 # Fetch daily trending repositories for Python
-npx tsx trending.ts --type=repositories --since=daily --lang=python
+npx tsx main.ts --type=repositories --since=daily --lang=python
 ```
 
 ### Fetch All Languages
 
 ```sh
-npx tsx trending.ts --type=repositories --since=daily --lang=all
+npx tsx main.ts --type=repositories --since=daily --lang=all
 ```
 
 ---
