@@ -149,7 +149,7 @@ const getToday = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-(async () => {
+async function main(): Promise<void> {
   let existingData: Record<string, SlimRepo[]> = {
     rust: [],
     typescript: [],
@@ -201,7 +201,9 @@ const getToday = () => {
 
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(existingData, null, 2), "utf-8");
   console.log(`Saved results: ${OUTPUT_FILE}`);
-})().catch(err => {
+}
+
+void main().catch((err) => {
   console.error(err);
-  process.exit(1);
+  process.exitCode = 1;
 });
