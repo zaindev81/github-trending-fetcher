@@ -1,8 +1,14 @@
-import type { TypeKind, Since, SlimRepo } from "./src/types/index.js";
-import { STAR_THRESHOLDS, MULTI_LANGS } from "./src/constants.js";
-import { getArg, getToday, upsertByUrl } from "./src/utils/index.js";
-import { fetchTrending } from "./src/fetcher.js";
-import { getOutputFilePath, loadExistingData, saveData } from "./src/dataManager.js";
+import {
+  type TypeKind,
+  type Since,
+  type SlimRepo,
+  STAR_THRESHOLDS,
+  MULTI_LANGS,
+  getArg,
+  getToday,
+  fetchTrending
+} from "@github-trending/core";
+import { FileTrendingStore } from "./fileStorage.js";
 
 const type = getArg("type", "repositories") as TypeKind;
 const since = getArg("since", "daily") as Since;
@@ -10,8 +16,7 @@ const lang = getArg("lang", null);
 const spoken = getArg("spoken", null);
 
 async function main(): Promise<void> {
-  const OUTPUT_FILE = getOutputFilePath();
-  const existingData = loadExistingData(OUTPUT_FILE);
+  const store = new FileTrendingStore();
 
   const handleOneLanguage = async (language: string) => {
     const data = await fetchTrending(type, { language, since, spokenLanguageCode: spoken });
@@ -28,9 +33,7 @@ async function main(): Promise<void> {
       dateAdded: today
     }));
 
-    for (const item of slimList) {
-      upsertByUrl(existingData[language as keyof typeof existingData], item);
-    }
+    await store.upsert(language, slimList);
   };
 
   if (lang === "all") {
@@ -42,7 +45,7 @@ async function main(): Promise<void> {
     await handleOneLanguage(lang);
   }
 
-  saveData(OUTPUT_FILE, existingData);
+  console.log("File backend sync complete");
 }
 
 void main().catch((err) => {

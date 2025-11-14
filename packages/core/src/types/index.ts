@@ -26,8 +26,14 @@ export interface FetchOptions {
 }
 
 export interface ExistingData {
-  rust: SlimRepo[];
-  typescript: SlimRepo[];
-  python: SlimRepo[];
-  go: SlimRepo[];
+  [language: string]: SlimRepo[];
+}
+
+export type LanguageKey = string;
+
+export type LanguageMap = ExistingData;
+
+export interface TrendingStore {
+  upsert(language: string, repositories: SlimRepo[]): Promise<void>;
+  read(language?: string): Promise<LanguageMap>;
 }

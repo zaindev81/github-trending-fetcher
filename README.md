@@ -1,17 +1,23 @@
-# GitHub Trending Fetcher
+# GitHub Trending Workspace
 
-A simple CLI tool to fetch **trending repositories** from [GitHub Trending](https://github.com/trending).
+A modern workspace that tracks GitHub Trending data with a shared core and two backend options:
 
-## Features
+1. **Local file backend** – write slim repo data into `{YYYY-MM}.json` inside the workspace.
+2. **Firebase backend** – schedule a Cloud Function job that writes the same slim data into Firestore and expose it via an HTTPS Function.
 
-* Fetch trending repositories for a specific language.
-* Supports multiple time ranges (`daily`, `weekly`, `monthly`).
-* Lightweight and easy to run using `tsx`.
+Both backends use the shared `@github-trending/core` package so that fetching logic, filters, and types stay perfectly aligned.
 
 ---
 
-## Installation
+## Workspace Layout
 
+| Package | Description |
+| --- | --- |
+| `@github-trending/core` | Shared fetcher, constants, and type definitions. Compiles to ESM in `dist/`. |
+| `@github-trending/backend-file` | CLI for local runs. Uses the core package plus a file-based store. |
+| `@github-trending/backend-firebase` | Firebase Functions entry. Includes a Firestore store, cron job, and HTTPS API. |
+
+Install dependencies once at the root:
 
 ```sh
 npm install
@@ -19,85 +25,87 @@ npm install
 
 ---
 
-## Usage
+## Shared Concepts
 
-### Fetch Trending Repositories
-
-Run the following command to fetch trending repositories for a specific language:
-
-```sh
-npx tsx main.ts --type=repositories --since=daily --lang=typescript
-```
-
-### Example Commands
-
-```sh
-# Fetch daily trending repositories for TypeScript
-npx tsx main.ts --type=repositories --since=daily --lang=typescript
-
-# Fetch daily trending repositories for Go
-npx tsx main.ts --type=repositories --since=daily --lang=go
-
-# Fetch daily trending repositories for Rust
-npx tsx main.ts --type=repositories --since=daily --lang=rust
-
-# Fetch daily trending repositories for Python
-npx tsx main.ts --type=repositories --since=daily --lang=python
-```
-
-### Fetch All Languages
-
-```sh
-npx tsx main.ts --type=repositories --since=daily --lang=all
-```
+* **Languages** – default to `typescript`, `go`, `rust`, `python`. Override via env or CLI.
+* **Time range** – `daily`, `weekly`, or `monthly`.
+* **Star thresholds** – see `packages/core/src/constants.ts` to adjust filtering for each language.
+* **Slim repo payload** – a deduped object with URL, description, star counts, and `dateAdded` for storage-friendly snapshots.
 
 ---
 
-## Language Limits
+## Local File Backend
 
-When fetching repositories, a maximum limit is applied for each language:
+1. Build the shared core once:
+   ```sh
+   npm run build:core
+   ```
+2. Run the CLI (arguments mirror the legacy script):
+   ```sh
+   npm run start:file -- --type=repositories --since=daily --lang=typescript
+   ```
 
-| Language   | Limit |
-| ---------- | ----- |
-| Go         | 50    |
-| Rust       | 50    |
-| Python     | 80    |
-| TypeScript | 80    |
+### CLI Flags
+
+| Flag | Description |
+| --- | --- |
+| `--type` | Trending type (`repositories` or `developers`). Defaults to `repositories`. |
+| `--since` | Time range (`daily`, `weekly`, `monthly`). Defaults to `daily`. |
+| `--lang` | Target language or `all`. Defaults to `null` (no fetch). |
+| `--spoken` | Optional GitHub spoken language code. |
+
+Results are appended to `./{YYYY-MM}.json` in the workspace root. Each invocation deduplicates entries by URL using the shared helper from the core package.
 
 ---
 
-## Options
+## Firebase Backend
 
-| Option    | Description                               | Example               |
-| --------- | ----------------------------------------- | --------------------- |
-| `--type`  | Data type to fetch (`repositories`)       | `--type=repositories` |
-| `--since` | Time range (`daily`, `weekly`, `monthly`) | `--since=daily`       |
-| `--lang`  | Programming language or `all`             | `--lang=typescript`   |
+### Build
 
----
+Compile the functions bundle before deploying:
 
-## Example Output
-
-Example output for TypeScript trending:
-
-```json
-[
-  {
-    "owner": "vercel",
-    "repo": "next.js",
-    "url": "https://github.com/vercel/next.js",
-    "description": "The React Framework for Production",
-    "language": "TypeScript",
-    "stars": 120000,
-    "forks": 25000,
-    "starsSince": 1500,
-    "contributors": ["user1", "user2"]
-  }
-]
+```sh
+npm run build:firebase
 ```
+
+The output lives in `packages/backend-firebase/dist` and can be deployed with the Firebase CLI (outside the scope of this repo).
+
+### Cloud Scheduler Job
+
+`syncTrendingJob` runs the fetcher within a Cloud Function and writes slim repos into Firestore (`trending/{language}`). Configure via environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SYNC_SCHEDULE` | `0 2 * * *` | Cron expression for the scheduler trigger. |
+| `SYNC_TIMEZONE` | `Etc/UTC` | Timezone for the cron schedule. |
+| `SYNC_SINCE` | `daily` | Which trending range to pull. Accepts `daily`, `weekly`, `monthly`. |
+| `SYNC_TYPE` | `repositories` | GitHub Trending type. |
+| `SYNC_LANGS` | `typescript,go,rust,python` | Comma‑separated list of languages to sync. |
+| `SPOKEN_LANG` | _unset_ | Optional spoken language code passed to GitHub Trending. |
+
+Each job run writes `items` (array of slim repos) and `updatedAt` into the Firestore document keyed by language.
+
+### HTTPS API
+
+`getTrendingApi` is an HTTPS Function that reads the Firestore store:
+
+```
+GET https://<region>-<project>.cloudfunctions.net/getTrendingApi?language=typescript
+```
+
+* Omit `language` to retrieve all stored languages.
+* Responses are cached for 60 seconds and include `Access-Control-Allow-Origin: *` by default.
+
+---
+
+## Development Tips
+
+* The core package must be rebuilt whenever the shared code changes: `npm run build:core`.
+* The file backend uses `tsx watch` for a quick feedback loop during development: `npm run dev:file -- --lang=typescript`.
+* Firebase admin credentials come from the runtime environment (service account). Ensure your Functions project has Firestore enabled.
 
 ---
 
 ## License
 
-MIT License
+MIT

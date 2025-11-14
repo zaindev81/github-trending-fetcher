@@ -1,19 +1,20 @@
 {
-  "name": "github-trending-fetcher",
+  "name": "github-trending-monorepo",
   "version": "1.0.0",
-  "description": "A CLI tool to fetch and track trending GitHub repositories by language and timeframe.",
-  "main": "main.ts",
-  "keywords": [],
-  "license": "MIT",
-  "type": "module",
-  "dependencies": {
-    "cheerio": "^1.1.2"
-  },
+  "private": true,
+  "description": "Workspace housing the shared GitHub trending core, file backend, and Firebase backend.",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "start": "npx tsx main.ts --type=repositories --since=daily --lang=all"
+    "build": "npm run build:core && npm run build:firebase",
+    "build:core": "npm --workspace @github-trending/core run build",
+    "start:file": "npm run build:core && npm --workspace @github-trending/backend-file run start",
+    "dev:file": "npm run build:core && npm --workspace @github-trending/backend-file run dev",
+    "build:firebase": "npm --workspace @github-trending/backend-firebase run build"
   },
-  "devDependencies": {
-    "@types/node": "^24.10.1",
-    "tsx": "^4.20.6"
-  }
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
 }
