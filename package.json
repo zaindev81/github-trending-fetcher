@@ -5,7 +5,7 @@
   "main": "main.ts",
   "keywords": [],
   "license": "MIT",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "cheerio": "^1.1.2"
   },
@@ -13,7 +13,7 @@
     "start": "npx tsx main.ts --type=repositories --since=daily --lang=all"
   },
   "devDependencies": {
-    "@types/node": "^24.3.1",
-    "tsx": "^4.20.5"
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6"
   }
 }
