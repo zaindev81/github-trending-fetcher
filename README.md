@@ -106,6 +106,73 @@ GET https://<region>-<project>.cloudfunctions.net/getTrendingApi?language=typesc
 
 ---
 
+## Local Firebase Development
+
+To test Firebase Functions locally before deploying to production:
+
+### Prerequisites
+
+1. Install Firebase CLI globally:
+   ```sh
+   npm install -g firebase-tools
+   ```
+
+2. Login to Firebase:
+   ```sh
+   firebase login
+   ```
+
+3. Install Firebase emulators (first time only):
+   ```sh
+   firebase init emulators
+   ```
+   Select **Functions** and **Firestore** emulators.
+
+### Running Locally
+
+1. Build the Firebase backend:
+   ```sh
+   npm run build:firebase
+   ```
+
+2. Start the Firebase emulators:
+   ```sh
+   cd packages/backend-firebase
+   firebase emulators:start
+   ```
+
+3. Access the emulator UI at `http://localhost:4000`
+
+### Testing Functions Locally
+
+* **Scheduled Function**: Trigger manually via the Functions emulator UI or using:
+  ```sh
+  curl http://localhost:5001/<project-id>/<region>/syncTrendingJob
+  ```
+
+* **HTTPS Function**: Test the API endpoint:
+  ```sh
+  curl "http://localhost:5001/<project-id>/<region>/getTrendingApi?language=typescript"
+  ```
+
+* **Firestore Data**: View stored data in the Firestore emulator at `http://localhost:4000/firestore`
+
+### Environment Variables for Local Development
+
+Create a `.env` file in `packages/backend-firebase/` with your configuration:
+
+```env
+SYNC_SCHEDULE=0 2 * * *
+SYNC_TIMEZONE=Etc/UTC
+SYNC_SINCE=daily
+SYNC_TYPE=repositories
+SYNC_LANGS=typescript,go,rust,python
+```
+
+The emulators use local storage, so all data is ephemeral and won't affect your production Firestore database.
+
+---
+
 ## License
 
 MIT

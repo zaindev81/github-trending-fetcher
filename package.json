@@ -9,8 +9,8 @@
   "scripts": {
     "build": "npm run build:core && npm run build:firebase",
     "build:core": "npm --workspace @github-trending/core run build",
-    "start:file": "npm run build:core && npm --workspace @github-trending/backend-file run start",
-    "dev:file": "npm run build:core && npm --workspace @github-trending/backend-file run dev",
+    "start:file": "npm run build:core && npm --workspace @github-trending/backend-file run start --",
+    "dev:file": "npm run build:core && npm --workspace @github-trending/backend-file run dev --",
     "build:firebase": "npm --workspace @github-trending/backend-firebase run build"
   },
   "engines": {
