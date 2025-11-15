@@ -112,7 +112,7 @@ To test Firebase Functions locally before deploying to production:
 
 ### Prerequisites
 
-1. Install Firebase CLI globally:
+1. Install Firebase CLI globally (if not already installed):
    ```sh
    npm install -g firebase-tools
    ```
@@ -122,51 +122,91 @@ To test Firebase Functions locally before deploying to production:
    firebase login
    ```
 
-3. Install Firebase emulators (first time only):
-   ```sh
-   firebase init emulators
-   ```
-   Select **Functions** and **Firestore** emulators.
+### Initial Setup (One-time)
+
+The Firebase configuration is already set up in `packages/backend-firebase/`. The key files are:
+
+- `firebase.json` - Firebase project configuration
+- `.firebaserc` - Project alias configuration
+- `firestore.rules` - Firestore security rules
 
 ### Running Locally
 
-1. Build the Firebase backend:
+1. **Build the core package** (required first):
+   ```sh
+   npm run build:core
+   ```
+
+2. **Build the Firebase functions**:
    ```sh
    npm run build:firebase
    ```
 
-2. Start the Firebase emulators:
+3. **Navigate to the Firebase backend directory**:
    ```sh
    cd packages/backend-firebase
-   firebase emulators:start
    ```
 
-3. Access the emulator UI at `http://localhost:4000`
+4. **Start the Firebase emulators**:
+   ```sh
+   firebase emulators:start --project=<project-id>
+   ```
+
+   This will start:
+   - Functions emulator on `http://localhost:5001`
+   - Firestore emulator on `http://localhost:8080`
+   - Emulator UI on `http://localhost:4000`
 
 ### Testing Functions Locally
 
-* **Scheduled Function**: Trigger manually via the Functions emulator UI or using:
-  ```sh
-  curl http://localhost:5001/<project-id>/<region>/syncTrendingJob
-  ```
+Once the emulators are running:
 
-* **HTTPS Function**: Test the API endpoint:
-  ```sh
-  curl "http://localhost:5001/<project-id>/<region>/getTrendingApi?language=typescript"
-  ```
+#### Test the HTTPS Function
 
-* **Firestore Data**: View stored data in the Firestore emulator at `http://localhost:4000/firestore`
+```sh
+# Get trending repos for a specific language
+curl "http://localhost:5001/<project-id>/<region>/getTrendingApi?language=typescript"
+
+# Get all languages
+curl "http://localhost:5001/<project-id>/<region>/getTrendingApi"
+```
+
+#### Trigger the Scheduled Function
+
+```sh
+curl -X POST http://localhost:5001/<project-id>/<region>/syncTrendingJob-0
+```
+
+#### View Firestore Data
+
+Open the Emulator UI at `http://localhost:4000` and navigate to the Firestore tab to see the stored data.
 
 ### Environment Variables for Local Development
 
-Create a `.env` file in `packages/backend-firebase/` with your configuration:
+Create a `.env.local` file in `packages/backend-firebase/` (optional):
 
 ```env
-SYNC_SCHEDULE=0 2 * * *
-SYNC_TIMEZONE=Etc/UTC
 SYNC_SINCE=daily
 SYNC_TYPE=repositories
 SYNC_LANGS=typescript,go,rust,python
+```
+
+Note: Environment variables are primarily for production. For local testing, you can modify the code directly or use the defaults.
+
+### Quick Test Workflow
+
+```sh
+# From the workspace root
+npm run build:core
+npm run build:firebase
+cd packages/backend-firebase
+firebase emulators:start --project=<project-id>
+
+# In another terminal, test the function
+curl -X POST http://localhost:5001/<project-id>/<region>/syncTrendingJob-0
+
+# Then query the data
+curl "http://localhost:5001/<project-id>/<region>/getTrendingApi?language=typescript"
 ```
 
 The emulators use local storage, so all data is ephemeral and won't affect your production Firestore database.
