@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { user } from '$lib/stores/auth';
 	import { signInWithGoogle, signOutUser } from '$lib/firebase';
+	import { Button } from './ui/button';
 
 	const handleSignin = async () => {
 		await signInWithGoogle();
@@ -11,112 +12,31 @@
 	};
 </script>
 
-<header>
-	<div>
-		<p class="eyebrow">GitHub Trending</p>
-		<h1>Workspace Dashboard</h1>
+<header class="flex flex-col gap-6 border-b border-border/70 pb-6 lg:flex-row lg:items-center">
+	<div class="space-y-1">
+		<p class="text-xs font-semibold uppercase tracking-[0.4em] text-muted-foreground">GitHub Trending</p>
+		<h1 class="text-3xl font-semibold tracking-tight text-foreground">Workspace Dashboard</h1>
+		<p class="text-base text-muted-foreground">
+			View the latest Firestore snapshots straight from the scheduled sync.
+		</p>
 	</div>
 
-	<div class="account">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end lg:ml-auto">
 		{#if $user}
-			<div class="user-badge">
-				<img src={$user.photoURL ?? 'https://avatars.githubusercontent.com/u/0?v=4'} alt="Avatar" />
-				<div>
-					<p>{$user.displayName}</p>
-					<small>{$user.email}</small>
+			<div class="flex flex-1 items-center gap-3 rounded-2xl border border-border/60 bg-muted/40 px-3 py-2 sm:flex-none">
+				<img
+					src={$user.photoURL ?? 'https://avatars.githubusercontent.com/u/0?v=4'}
+					alt="Avatar"
+					class="h-11 w-11 rounded-2xl border object-cover"
+				/>
+				<div class="space-y-0.5 text-sm">
+					<p class="font-semibold text-foreground">{$user.displayName}</p>
+					<p class="text-xs text-muted-foreground truncate max-w-[12rem]">{$user.email}</p>
 				</div>
 			</div>
-			<button class="ghost" on:click={handleSignout}>Sign out</button>
+			<Button variant="outline" class="w-full sm:w-auto" on:click={handleSignout}>Sign out</Button>
 		{:else}
-			<button on:click={handleSignin}>Sign in with Google</button>
+			<Button class="w-full sm:w-auto" on:click={handleSignin}>Sign in with Google</Button>
 		{/if}
 	</div>
 </header>
-
-<style>
-	header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 2rem;
-		padding: 1rem 0;
-		border-bottom: 1px solid var(--surface-outline);
-	}
-
-	.eyebrow {
-		font-size: 0.9rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--text-muted);
-		margin: 0;
-	}
-
-	h1 {
-		margin: 0.2rem 0 0;
-		font-size: clamp(1.5rem, 2vw, 2.5rem);
-	}
-
-	.account {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-	}
-
-	button {
-		border-radius: 999px;
-		border: none;
-		background: var(--accent);
-		color: #0b1221;
-		padding: 0.65rem 1.25rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: transform 150ms ease, box-shadow 150ms ease;
-	}
-
-	button:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 8px 20px rgb(0 0 0 / 0.15);
-	}
-
-	.ghost {
-		background: transparent;
-		color: var(--text-primary);
-		border: 1px solid var(--surface-outline);
-	}
-
-	.user-badge {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		min-width: 12rem;
-	}
-
-	.user-badge img {
-		width: 42px;
-		height: 42px;
-		border-radius: 50%;
-		border: 1px solid var(--surface-outline);
-		object-fit: cover;
-	}
-
-	.user-badge p {
-		margin: 0;
-		font-weight: 600;
-	}
-
-	.user-badge small {
-		color: var(--text-muted);
-	}
-
-	@media (max-width: 720px) {
-		header {
-			flex-direction: column;
-			align-items: flex-start;
-		}
-
-		.account {
-			width: 100%;
-			justify-content: space-between;
-		}
-	}
-</style>

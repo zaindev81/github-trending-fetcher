@@ -1,423 +1,399 @@
 <script lang="ts">
-	import {
-		fetchTrendingSnapshots,
-		type TrendGroupKey,
-		type TrendingSnapshot
-	} from '$lib/api';
-	import { loadingUser, user } from '$lib/stores/auth';
+import { Button } from "$lib/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "$lib/components/ui/card";
+import { Label } from "$lib/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "$lib/components/ui/select";
+import { RangeCalendar } from "$lib/components/ui/range-calendar";
+import { cn } from "$lib/utils";
+import { getLocalTimeZone, today, type DateValue } from "@internationalized/date";
+import {
+  fetchTrendingSnapshots,
+    type TrendGroupKey,
+    type TrendingSnapshot
+} from "$lib/api";
+import { loadingUser, user } from "$lib/stores/auth";
+import { signInWithGoogle } from "$lib/firebase";
 
-	type Status = 'idle' | 'loading' | 'success' | 'error';
+  type Status = "idle" | "loading" | "success" | "error";
 
-	const languages = ['typescript', 'go', 'rust', 'python'];
-	const sinceOptions: Array<{ label: string; value: 'daily' | 'weekly' | 'monthly' }> = [
-		{ label: 'Daily', value: 'daily' },
-		{ label: 'Weekly', value: 'weekly' },
-		{ label: 'Monthly', value: 'monthly' }
-	];
-	const groupOptions: Array<{ label: string; value: TrendGroupKey }> = [
-		{ label: 'By Day', value: 'day' },
-		{ label: 'By Month', value: 'month' }
-	];
+  const languages = ["typescript", "go", "rust", "python"];
+  const sinceOptions: Array<{ label: string; value: "daily" | "weekly" | "monthly" }> = [
+    { label: "Daily", value: "daily" },
+    { label: "Weekly", value: "weekly" },
+    { label: "Monthly", value: "monthly" }
+  ];
+  const groupOptions: Array<{ label: string; value: TrendGroupKey }> = [
+    { label: "By Day", value: "day" },
+    { label: "By Month", value: "month" }
+  ];
 
-	const now = new Date();
-	const defaultMonth = now.toISOString().slice(0, 7);
+  const statusCopy: Record<Status, string> = {
+    idle: "Waiting for filters",
+    loading: "Fetching snapshots…",
+    success: "Results ready",
+    error: "Unable to fetch"
+  };
 
-	let selectedLanguage = 'typescript';
-	let selectedSince: 'daily' | 'weekly' | 'monthly' = 'daily';
-	let selectedMonth: string = defaultMonth;
-	let selectedDay: string = '';
-let selectedGroup: TrendGroupKey = 'day';
+  const statusClasses: Record<Status, string> = {
+    idle: "bg-muted text-muted-foreground",
+    loading: "bg-primary/15 text-primary",
+    success: "bg-emerald-50 text-emerald-700",
+    error: "bg-destructive/15 text-destructive"
+  };
 
-	let status: Status = 'idle';
-	let errorMessage = '';
-	let lastFetchedAt = '';
-	let snapshots: TrendingSnapshot[] = [];
-	let groupedResult: Record<string, TrendingSnapshot[]> | null = null;
+const timezone = getLocalTimeZone();
+const initialDate = today(timezone);
+const initialIso = initialDate.toString();
 
-	function handleDayChange(value: string) {
-		selectedDay = value;
-		if (value) {
-			selectedMonth = value.slice(0, 7);
-		}
-	}
+let selectedLanguage = "typescript";
+let selectedSince: "daily" | "weekly" | "monthly" = "daily";
+let selectedMonth: string = initialIso.slice(0, 7);
+let selectedDay: string = initialIso;
+let calendarValue: { start: DateValue; end: DateValue } | undefined = {
+  start: initialDate,
+  end: initialDate
+};
+let selectedGroup: TrendGroupKey = "day";
 
-	async function refreshData() {
-		if (!$user) {
-			errorMessage = 'Sign in to load data.';
-			return;
-		}
-		status = 'loading';
-		errorMessage = '';
+  let status: Status = "idle";
+  let errorMessage = "";
+  let lastFetchedAt = "";
+  let snapshots: TrendingSnapshot[] = [];
+  let groupedResult: Record<string, TrendingSnapshot[]> | null = null;
 
-		try {
-			const response = await fetchTrendingSnapshots({
-				language: selectedLanguage,
-				since: selectedSince,
-				month: selectedMonth || undefined,
-				day: selectedDay || undefined,
-				groupBy: selectedGroup
-			});
+const handleLanguageTab = (language: string): void => {
+  selectedLanguage = language;
+};
 
-			snapshots = response.data;
-			groupedResult = response.groupedBy && response.groups ? response.groups : null;
-			status = 'success';
-			lastFetchedAt = new Date().toLocaleString();
-		} catch (error) {
-			status = 'error';
-			errorMessage =
-				error instanceof Error
-					? error.message
-					: 'Failed to fetch trending data. Please try again.';
-		}
-	}
+async function refreshData(): Promise<void> {
+  if (!$user) {
+    errorMessage = "Sign in to load data.";
+      status = "error";
+      return;
+    }
+    status = "loading";
+    errorMessage = "";
 
-	function handleFormSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		void refreshData();
-	}
+    try {
+      const response = await fetchTrendingSnapshots({
+        language: selectedLanguage,
+        since: selectedSince,
+        month: selectedMonth || undefined,
+        day: selectedDay || undefined,
+        groupBy: selectedGroup
+      });
 
-	$: isLoading = status === 'loading';
+      snapshots = response.data;
+      groupedResult = response.groupedBy && response.groups ? response.groups : null;
+      status = "success";
+      lastFetchedAt = new Date().toLocaleString();
+    } catch (error) {
+      status = "error";
+      errorMessage =
+        error instanceof Error ? error.message : "Failed to fetch trending data. Please try again.";
+    }
+  }
+
+function handleFormSubmit(event: SubmitEvent): void {
+  event.preventDefault();
+  void refreshData();
+}
+
+async function handleInlineSignIn(): Promise<void> {
+  await signInWithGoogle();
+}
+
+$: {
+  const activeDate = calendarValue?.end ?? calendarValue?.start ?? null;
+  if (activeDate) {
+    const iso = activeDate.toString();
+    selectedDay = iso;
+    selectedMonth = iso.slice(0, 7);
+  }
+}
+
+$: isLoading = status === "loading";
+$: disableFetch = !$user || isLoading;
 </script>
 
 <svelte:head>
-	<title>Trending Workspace</title>
-	<meta name="description" content="View and explore GitHub trending snapshots stored in Firebase." />
+  <title>Trending Workspace</title>
+  <meta name="description" content="View and explore GitHub trending snapshots stored in Firebase." />
 </svelte:head>
 
-{#if $loadingUser}
-	<section class="panel">
-		<p class="muted">Connecting to Firebase auth…</p>
-	</section>
-{:else}
-	{#if !$user}
-		<section class="panel">
-			<h2>Authenticate to continue</h2>
-			<p class="muted">
-				Sign in with your Google account to fetch the latest trending snapshots from Firebase.
-			</p>
-		</section>
-	{/if}
-
-	<section class="panel">
-		<form class="filters" on:submit={handleFormSubmit}>
-			<div class="field-grid">
-				<label>
-					<span>Language</span>
-					<select bind:value={selectedLanguage}>
-						{#each languages as lang}
-							<option value={lang}>{lang}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label>
-					<span>Trending Window</span>
-					<select bind:value={selectedSince}>
-						{#each sinceOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label>
-					<span>Month</span>
-					<input type="month" bind:value={selectedMonth} max={defaultMonth} />
-				</label>
-
-				<label>
-					<span>Specific day (optional)</span>
-					<input type="date" bind:value={selectedDay} on:change={(event) => handleDayChange(event.currentTarget.value)} />
-				</label>
-
-				<label>
-					<span>Group results</span>
-					<select bind:value={selectedGroup}>
-						{#each groupOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</label>
-			</div>
-
-			<div class="filters__actions">
-				<button type="submit" disabled={isLoading || !$user}>
-					{#if isLoading}
-						Loading…
-					{:else}
-						Fetch snapshots
-					{/if}
-				</button>
-				{#if lastFetchedAt}
-					<span class="muted">
-						Last synced: {lastFetchedAt}
-					</span>
-				{/if}
-			</div>
-		</form>
-
-		{#if !$user}
-			<p class="muted small">Sign in to enable the fetch button.</p>
-		{/if}
-
-		{#if status === 'error'}
-			<div class="error-banner">
-				<p>{errorMessage}</p>
-			</div>
-		{/if}
-	</section>
-
-	<section class="panel">
-		{#if isLoading}
-			<p class="muted">Gathering the latest trending data…</p>
-		{:else if snapshots.length === 0}
-			<p class="muted">No snapshots yet. Adjust filters and click “Fetch snapshots”.</p>
-		{:else}
-			{#if groupedResult}
-				{#each Object.entries(groupedResult) as [groupKey, groupSnapshots]}
-					<article class="snapshot-group">
-						<header>
-							<span class="eyebrow">Group</span>
-							<h2>{groupKey}</h2>
-							<p>{groupSnapshots.length} snapshot{groupSnapshots.length > 1 ? 's' : ''}</p>
-						</header>
-
-						<div class="snapshot-grid">
-							{#each groupSnapshots as snapshot}
-								{@const topItems = snapshot.items.slice(0, 5)}
-								<div class="snapshot-card">
-									<div class="snapshot-meta">
-										<p class="eyebrow">{snapshot.day}</p>
-										<h3>{snapshot.language}</h3>
-										<p class="muted">
-											Trending repositories · {snapshot.since} · {snapshot.items.length} repos
-										</p>
-									</div>
-									<ul>
-										{#if topItems.length === 0}
-											<li class="muted">No repositories matched the thresholds.</li>
-										{:else}
-											{#each topItems as repo}
-												<li>
-													<div>
-														<a href={repo.url ?? '#'} target="_blank" rel="noreferrer">
-															{repo.url ?? 'Unknown repo'}
-														</a>
-														<p class="muted">{repo.description ?? 'No description'}</p>
-													</div>
-													<span>{repo.starsSince ?? 0}★</span>
-												</li>
-											{/each}
-										{/if}
-									</ul>
-								</div>
-							{/each}
-						</div>
-					</article>
-				{/each}
-			{:else}
-				<article class="snapshot-group">
-					<header>
-						<span class="eyebrow">Results</span>
-						<h2>{snapshots.length} snapshot{snapshots.length > 1 ? 's' : ''}</h2>
-					</header>
-					<div class="snapshot-grid">
-						{#each snapshots as snapshot}
-							<div class="snapshot-card">
-								<div class="snapshot-meta">
-									<p class="eyebrow">{snapshot.day}</p>
-									<h3>{snapshot.language}</h3>
-									<p class="muted">
-										Trending repositories · {snapshot.since} · {snapshot.items.length} repos
-									</p>
-								</div>
-								<ul>
-									{#each snapshot.items.slice(0, 5) as repo}
-										<li>
-											<div>
-												<a href={repo.url ?? '#'} target="_blank" rel="noreferrer">
-													{repo.url ?? 'Unknown repo'}
-												</a>
-												<p class="muted">{repo.description ?? 'No description'}</p>
-											</div>
-											<span>{repo.starsSince ?? 0}★</span>
-										</li>
-									{/each}
-								</ul>
-							</div>
-						{/each}
-					</div>
-				</article>
-			{/if}
-		{/if}
-	</section>
+{#if !$loadingUser && !$user}
+  <Card class="bg-card/80 shadow-lg">
+    <CardHeader class="space-y-2">
+      <CardTitle>Sign in to continue</CardTitle>
+      <CardDescription>Connect your Google account to fetch Firebase snapshots.</CardDescription>
+    </CardHeader>
+    <CardContent class="flex flex-col gap-3">
+      <p class="text-sm text-muted-foreground">
+        Authentication is required before the dashboard can load stored trending data.
+      </p>
+      <Button class="w-full sm:w-auto" on:click={handleInlineSignIn}>
+        Sign in with Google
+      </Button>
+    </CardContent>
+  </Card>
 {/if}
 
-<style>
-	.panel {
-		background: var(--surface);
-		border: 1px solid var(--surface-outline);
-		border-radius: 24px;
-		padding: 1.5rem;
-		box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.02);
-	}
+<Card class="bg-card/80 shadow-lg">
+  <CardHeader class="space-y-3">
+    <CardTitle>Snapshot filters</CardTitle>
+    <CardDescription>
+      Pick a language, time range, and optional date constraints before fetching Firestore snapshots.
+    </CardDescription>
+  </CardHeader>
+  <CardContent>
+    <form class="space-y-6" on:submit={handleFormSubmit}>
+      <div class="space-y-2">
+        <Label for="language-tabs">Language</Label>
+        <div
+          id="language-tabs"
+          class="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-muted/30 p-2"
+          role="tablist"
+        >
+          {#each languages as lang}
+            {@const isActive = selectedLanguage === lang}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              class={cn(
+                "rounded-xl px-4 py-2 text-sm font-medium capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+              on:click={() => handleLanguageTab(lang)}
+            >
+              {lang}
+            </button>
+          {/each}
+        </div>
+      </div>
 
-	.filters {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-2">
+          <Label for="since-select">Trending window</Label>
+          <Select
+            type="single"
+            bind:value={selectedSince}
+            items={sinceOptions}
+          >
+            <SelectTrigger id="since-select" class="w-full justify-between">
+              <span class="text-sm capitalize" data-slot="select-value">
+                {sinceOptions.find(option => option.value === selectedSince)?.label ?? "Choose window"}
+              </span>
+            </SelectTrigger>
+            <SelectContent class="w-full min-w-[220px]">
+              {#each sinceOptions as option}
+                <SelectItem value={option.value}>{option.label}</SelectItem>
+              {/each}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-	.field-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 1rem;
-	}
+      <div class="space-y-2">
+        <Label for="calendar">Snapshot day</Label>
+        <div id="calendar" class="inline-block rounded-xl border border-border/70 bg-card/80 p-2">
+          <RangeCalendar
+            bind:value={calendarValue}
+            buttonVariant="ghost"
+            captionLayout="dropdown-months"
+            weekdayFormat="short"
+          />
+        </div>
+        <p class="text-xs text-muted-foreground">Selected date: {selectedDay}</p>
+      </div>
 
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-		font-size: 0.9rem;
-	}
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-2 md:col-span-2">
+          <Label for="group-select">Group results</Label>
+          <Select
+            type="single"
+            bind:value={selectedGroup}
+            items={groupOptions}
+          >
+            <SelectTrigger id="group-select" class="w-full justify-between">
+              <span class="text-sm capitalize" data-slot="select-value">
+                {groupOptions.find(option => option.value === selectedGroup)?.label ?? "Group by"}
+              </span>
+            </SelectTrigger>
+            <SelectContent class="w-full min-w-[220px]">
+              {#each groupOptions as option}
+                <SelectItem value={option.value}>{option.label}</SelectItem>
+              {/each}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-	select,
-	input {
-		border-radius: 14px;
-		padding: 0.75rem 0.9rem;
-		border: 1px solid var(--surface-outline);
-		background: var(--surface-alt);
-		color: var(--text-primary);
-	}
+      <div class="flex flex-col gap-4 border-t border-dashed border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-2">
+          <span class={`w-max rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[status]}`}>
+            {statusCopy[status]}
+          </span>
+          {#if lastFetchedAt}
+            <p class="text-xs text-muted-foreground">Last synced: {lastFetchedAt}</p>
+          {/if}
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          {#if !$user}
+            <p class="text-sm text-muted-foreground">Sign in to enable fetching.</p>
+          {/if}
+          <Button class="w-full sm:w-auto" type="submit" disabled={disableFetch}>
+            {#if isLoading}
+              Gathering data…
+            {:else}
+              Fetch snapshots
+            {/if}
+          </Button>
+        </div>
+      </div>
 
-	.filters__actions {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
+      {#if status === "error" && errorMessage}
+        <div class="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      {/if}
+    </form>
+  </CardContent>
+</Card>
 
-	button {
-		border: none;
-		background: linear-gradient(120deg, #4cf4c6, #2fe6ff);
-		color: #05060d;
-		font-weight: 600;
-		padding: 0.8rem 1.5rem;
-		border-radius: 999px;
-		cursor: pointer;
-		min-width: 180px;
-		box-shadow: 0 8px 25px rgb(76 244 198 / 0.35);
-		transition: transform 150ms ease;
-	}
-
-	button:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-		box-shadow: none;
-	}
-
-	button:not(:disabled):hover {
-		transform: translateY(-1px);
-	}
-
-	.muted {
-		color: var(--text-muted);
-	}
-
-	.muted.small {
-		font-size: 0.85rem;
-	}
-
-	.error-banner {
-		margin-top: 1rem;
-		padding: 0.9rem 1rem;
-		border-radius: 16px;
-		background: rgba(255, 107, 107, 0.12);
-		border: 1px solid rgba(255, 107, 107, 0.35);
-		color: var(--danger);
-	}
-
-	.snapshot-group {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		padding: 1rem 0;
-		border-bottom: 1px solid var(--surface-outline);
-	}
-
-	.snapshot-group:last-child {
-		border-bottom: none;
-	}
-
-	.snapshot-group header {
-		display: flex;
-		align-items: baseline;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
-	.snapshot-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-		gap: 1rem;
-	}
-
-	.snapshot-card {
-		background: var(--surface-alt);
-		border-radius: 18px;
-		padding: 1rem;
-		border: 1px solid var(--surface-outline);
-		height: 100%;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.snapshot-meta h3 {
-		margin: 0.2rem 0;
-		font-size: 1.05rem;
-	}
-
-	.eyebrow {
-		text-transform: uppercase;
-		font-size: 0.7rem;
-		letter-spacing: 0.14em;
-		color: var(--text-muted);
-	}
-
-	.snapshot-card ul {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.snapshot-card li {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.5rem;
-		border-bottom: 1px solid rgb(255 255 255 / 0.08);
-		padding-bottom: 0.5rem;
-	}
-
-	.snapshot-card li:last-child {
-		border-bottom: none;
-		padding-bottom: 0;
-	}
-
-	.snapshot-card a {
-		color: var(--text-primary);
-		font-weight: 600;
-		word-break: break-all;
-	}
-
-	.snapshot-card span {
-		font-weight: 700;
-		color: var(--accent);
-		white-space: nowrap;
-		min-width: 3rem;
-		text-align: right;
-	}
-</style>
+<Card class="bg-card/70">
+  <CardHeader class="space-y-2">
+    <CardTitle>Snapshot results</CardTitle>
+    <CardDescription>
+      {selectedLanguage} · {selectedSince} · {selectedGroup === "day" ? "grouped by day" : "grouped by month"}
+    </CardDescription>
+  </CardHeader>
+  <CardContent class="space-y-6">
+    {#if $loadingUser}
+      <div class="rounded-3xl border border-border/70 bg-muted/40 px-4 py-6 text-sm text-muted-foreground">
+        Connecting to Firebase auth…
+      </div>
+    {:else if !$user}
+      <div class="rounded-3xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+        Authenticate above to view stored snapshots.
+      </div>
+    {:else if isLoading}
+      <div class="animate-pulse rounded-3xl border border-border/70 bg-muted/30 px-4 py-6 text-sm text-muted-foreground">
+        Gathering the latest trending data…
+      </div>
+    {:else if snapshots.length === 0}
+      <div class="rounded-3xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+        No snapshots yet. Adjust filters and click “Fetch snapshots”.
+      </div>
+    {:else}
+      {#if groupedResult}
+        {#each Object.entries(groupedResult) as [groupKey, groupSnapshots]}
+          <section class="space-y-4 rounded-3xl border border-border/60 bg-background/60 p-5">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                  {selectedGroup === "day" ? "Day group" : "Month group"}
+                </p>
+                <h3 class="text-2xl font-semibold tracking-tight text-foreground">{groupKey}</h3>
+                <p class="text-sm text-muted-foreground">
+                  {groupSnapshots.length} snapshot{groupSnapshots.length === 1 ? "" : "s"}
+                </p>
+              </div>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              {#each groupSnapshots as snapshot}
+                {@const topItems = snapshot.items.slice(0, 5)}
+                <div class="rounded-2xl border border-border/60 bg-white/90 p-4 shadow-sm">
+                  <div class="space-y-1">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {snapshot.day}
+                    </p>
+                    <h4 class="text-lg font-semibold capitalize">{snapshot.language}</h4>
+                    <p class="text-sm text-muted-foreground">
+                      Trending repositories · {snapshot.since} · {snapshot.items.length} repos
+                    </p>
+                  </div>
+                  <ul class="mt-4 space-y-3 text-sm">
+                    {#if topItems.length === 0}
+                      <li class="text-muted-foreground">No repositories matched the thresholds.</li>
+                    {:else}
+                      {#each topItems as repo}
+                        <li class="flex items-start justify-between gap-3 rounded-xl border border-border/40 bg-muted/10 p-3">
+                          <div class="space-y-1">
+                            <a
+                              href={repo.url ?? "#"}
+                              target="_blank"
+                              rel="noreferrer"
+                              class="font-medium text-primary hover:underline"
+                            >
+                              {repo.url ?? "Unknown repo"}
+                            </a>
+                            <p class="text-xs text-muted-foreground">
+                              {repo.description ?? "No description"}
+                            </p>
+                          </div>
+                          <span class="text-xs font-semibold text-muted-foreground">
+                            {(repo.starsSince ?? 0).toLocaleString()}★
+                          </span>
+                        </li>
+                      {/each}
+                    {/if}
+                  </ul>
+                </div>
+              {/each}
+            </div>
+          </section>
+        {/each}
+      {:else}
+        <div class="grid gap-4 md:grid-cols-2">
+          {#each snapshots as snapshot}
+            {@const topItems = snapshot.items.slice(0, 5)}
+            <div class="rounded-2xl border border-border/60 bg-white/90 p-4 shadow-sm">
+              <div class="space-y-1">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  {snapshot.day}
+                </p>
+                <h4 class="text-lg font-semibold capitalize">{snapshot.language}</h4>
+                <p class="text-sm text-muted-foreground">
+                  Trending repositories · {snapshot.since} · {snapshot.items.length} repos
+                </p>
+              </div>
+              <ul class="mt-4 space-y-3 text-sm">
+                {#if topItems.length === 0}
+                  <li class="text-muted-foreground">No repositories matched the thresholds.</li>
+                {:else}
+                  {#each topItems as repo}
+                    <li class="flex items-start justify-between gap-3 rounded-xl border border-border/40 bg-muted/10 p-3">
+                      <div class="space-y-1">
+                        <a
+                          href={repo.url ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          class="font-medium text-primary hover:underline"
+                        >
+                          {repo.url ?? "Unknown repo"}
+                        </a>
+                        <p class="text-xs text-muted-foreground">{repo.description ?? "No description"}</p>
+                      </div>
+                      <span class="text-xs font-semibold text-muted-foreground">
+                        {(repo.starsSince ?? 0).toLocaleString()}★
+                      </span>
+                    </li>
+                  {/each}
+                {/if}
+              </ul>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+  </CardContent>
+</Card>

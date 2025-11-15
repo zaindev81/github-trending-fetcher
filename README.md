@@ -123,6 +123,21 @@ Responses are cached for 60 seconds and include `Access-Control-Allow-Origin: *`
 * The file backend uses `tsx watch` for a quick feedback loop during development: `npm run dev:file -- --lang=typescript`.
 * Firebase admin credentials come from the runtime environment (service account). Ensure your Functions project has Firestore enabled.
 
+### Troubleshooting
+
+**PostCSS/Tailwind CSS Error**: If you see an error about `tailwindcss` as a PostCSS plugin, ensure `postcss.config.cjs` uses `@tailwindcss/postcss`:
+
+```javascript
+module.exports = {
+  plugins: {
+    '@tailwindcss/postcss': {},
+    autoprefixer: {}
+  }
+};
+```
+
+This project uses Tailwind CSS v4, which requires `@tailwindcss/postcss` instead of the old `tailwindcss` plugin name.
+
 ---
 
 ## Svelte Frontend
