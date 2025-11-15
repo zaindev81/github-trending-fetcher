@@ -83,7 +83,17 @@ The output lives in `packages/backend-firebase/dist` and can be deployed with th
 | `SYNC_LANGS` | `typescript,go,rust,python` | Comma‑separated list of languages to sync. |
 | `SPOKEN_LANG` | _unset_ | Optional spoken language code passed to GitHub Trending. |
 
-Each job run writes `items` (array of slim repos) and `updatedAt` into the Firestore document keyed by language.
+Each job run writes a daily snapshot document to the `trendingSnapshots` collection:
+
+| Field | Example | Description |
+| --- | --- | --- |
+| `language` | `typescript` | GitHub language key. |
+| `type` | `repositories` | Trending type that generated the snapshot. |
+| `since` | `daily` | Trending window. |
+| `month` | `2025-11` | Month bucket for easy querying. |
+| `day` | `2025-11-14` | ISO date of the fetch job. |
+| `items` | `[SlimRepo, ...]` | Array of slim repositories captured on that day. |
+| `updatedAt` | server timestamp | Managed by Firestore. |
 
 ### HTTPS API
 
@@ -93,8 +103,20 @@ Each job run writes `items` (array of slim repos) and `updatedAt` into the Fires
 GET https://<region>-<project>.cloudfunctions.net/getTrendingApi?language=typescript
 ```
 
-* Omit `language` to retrieve all stored languages.
-* Responses are cached for 60 seconds and include `Access-Control-Allow-Origin: *` by default.
+The API supports filtering and grouping so consumers can view data for a month, a specific day, or a single trending type:
+
+| Query | Example | Description |
+| --- | --- | --- |
+| `language` | `language=rust` | Filter by GitHub language. |
+| `type` | `type=repositories` | Filter by trending type. |
+| `since` | `since=weekly` | Filter by trending window. |
+| `month` | `month=2025-11` | Narrow results to a specific month bucket. |
+| `day` | `day=2025-11-14` | Fetch a single day snapshot. |
+| `groupBy` | `groupBy=month` | Optional grouping (`month`, `day`, or `type`). |
+
+Example: `GET .../getTrendingApi?language=typescript&month=2025-11&groupBy=day` returns all TypeScript snapshots for November grouped by day, allowing clients to page through the buckets without manual aggregation.
+
+Responses are cached for 60 seconds and include `Access-Control-Allow-Origin: *` by default.
 
 ---
 

@@ -25,15 +25,28 @@ export interface FetchOptions {
   spokenLanguageCode?: string | null;
 }
 
-export interface ExistingData {
-  [language: string]: SlimRepo[];
+export interface TrendingSnapshot {
+  language: string;
+  type: TypeKind;
+  since: Since;
+  month: string;
+  day: string;
+  items: SlimRepo[];
 }
 
-export type LanguageKey = string;
+export interface TrendingQuery {
+  language?: string;
+  type?: TypeKind;
+  since?: Since;
+  month?: string;
+  day?: string;
+}
 
-export type LanguageMap = ExistingData;
+export interface ExistingData {
+  [language: string]: TrendingSnapshot[];
+}
 
 export interface TrendingStore {
-  upsert(language: string, repositories: SlimRepo[]): Promise<void>;
-  read(language?: string): Promise<LanguageMap>;
+  upsert(snapshot: TrendingSnapshot): Promise<void>;
+  read(query?: TrendingQuery): Promise<TrendingSnapshot[]>;
 }

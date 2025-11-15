@@ -6,6 +6,7 @@ import {
   MULTI_LANGS,
   getArg,
   getToday,
+  getYearMonth,
   fetchTrending
 } from "@github-trending/core";
 import { FileTrendingStore } from "./fileStorage.js";
@@ -25,6 +26,7 @@ async function main(): Promise<void> {
     const filtered = data.filter(repo => (repo.starsSince ?? 0) >= threshold);
 
     const today = getToday();
+    const monthKey = getYearMonth();
     const slimList: SlimRepo[] = filtered.map(r => ({
       url: r.url,
       description: r.description,
@@ -33,7 +35,14 @@ async function main(): Promise<void> {
       dateAdded: today
     }));
 
-    await store.upsert(language, slimList);
+    await store.upsert({
+      language,
+      type,
+      since,
+      month: monthKey,
+      day: today,
+      items: slimList
+    });
   };
 
   if (lang === "all") {
