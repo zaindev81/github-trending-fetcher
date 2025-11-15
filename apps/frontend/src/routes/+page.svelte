@@ -67,9 +67,9 @@ let selectedGroup: TrendGroupKey = "day";
   let snapshots: TrendingSnapshot[] = [];
   let groupedResult: Record<string, TrendingSnapshot[]> | null = null;
 
-const handleLanguageTab = (language: string): void => {
+function handleLanguageTab(language: string): void {
   selectedLanguage = language;
-};
+}
 
 async function refreshData(): Promise<void> {
   if (!$user) {
@@ -102,7 +102,6 @@ async function refreshData(): Promise<void> {
 
 function handleFormSubmit(event: SubmitEvent): void {
   event.preventDefault();
-  void refreshData();
 }
 
 async function handleInlineSignIn(): Promise<void> {
@@ -120,29 +119,17 @@ $: {
 
 $: isLoading = status === "loading";
 $: disableFetch = !$user || isLoading;
+
+// Auto-fetch when user is signed in and filter changes
+$: if ($user && !$loadingUser) {
+  void refreshData();
+}
 </script>
 
 <svelte:head>
   <title>Trending Workspace</title>
   <meta name="description" content="View and explore GitHub trending snapshots stored in Firebase." />
 </svelte:head>
-
-{#if !$loadingUser && !$user}
-  <Card class="bg-card/80 shadow-lg">
-    <CardHeader class="space-y-2">
-      <CardTitle>Sign in to continue</CardTitle>
-      <CardDescription>Connect your Google account to fetch Firebase snapshots.</CardDescription>
-    </CardHeader>
-    <CardContent class="flex flex-col gap-3">
-      <p class="text-sm text-muted-foreground">
-        Authentication is required before the dashboard can load stored trending data.
-      </p>
-      <Button class="w-full sm:w-auto" on:click={handleInlineSignIn}>
-        Sign in with Google
-      </Button>
-    </CardContent>
-  </Card>
-{/if}
 
 <Card class="bg-card/80 shadow-lg">
   <CardHeader class="space-y-3">
@@ -167,7 +154,7 @@ $: disableFetch = !$user || isLoading;
               role="tab"
               aria-selected={isActive}
               class={cn(
-                "rounded-xl px-4 py-2 text-sm font-medium capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "rounded-xl px-4 py-2 text-sm font-medium capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -203,7 +190,7 @@ $: disableFetch = !$user || isLoading;
       </div>
 
       <div class="space-y-2">
-        <Label for="calendar">Snapshot day</Label>
+        <Label for="calendar" class="mb-1 block">Snapshot day</Label>
         <div id="calendar" class="inline-block rounded-xl border border-border/70 bg-card/80 p-2">
           <RangeCalendar
             bind:value={calendarValue}
@@ -245,18 +232,6 @@ $: disableFetch = !$user || isLoading;
           {#if lastFetchedAt}
             <p class="text-xs text-muted-foreground">Last synced: {lastFetchedAt}</p>
           {/if}
-        </div>
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          {#if !$user}
-            <p class="text-sm text-muted-foreground">Sign in to enable fetching.</p>
-          {/if}
-          <Button class="w-full sm:w-auto" type="submit" disabled={disableFetch}>
-            {#if isLoading}
-              Gathering data…
-            {:else}
-              Fetch snapshots
-            {/if}
-          </Button>
         </div>
       </div>
 
