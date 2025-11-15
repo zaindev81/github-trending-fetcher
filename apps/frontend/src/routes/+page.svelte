@@ -28,10 +28,6 @@ import { signInWithGoogle } from "$lib/firebase";
     { label: "Weekly", value: "weekly" },
     { label: "Monthly", value: "monthly" }
   ];
-  const groupOptions: Array<{ label: string; value: TrendGroupKey }> = [
-    { label: "By Day", value: "day" },
-    { label: "By Month", value: "month" }
-  ];
 
   const statusCopy: Record<Status, string> = {
     idle: "Waiting for filters",
@@ -59,13 +55,11 @@ let calendarValue: { start: DateValue; end: DateValue } | undefined = {
   start: initialDate,
   end: initialDate
 };
-let selectedGroup: TrendGroupKey = "day";
 
   let status: Status = "idle";
   let errorMessage = "";
   let lastFetchedAt = "";
   let snapshots: TrendingSnapshot[] = [];
-  let groupedResult: Record<string, TrendingSnapshot[]> | null = null;
 
 function handleLanguageTab(language: string): void {
   selectedLanguage = language;
@@ -85,12 +79,10 @@ async function refreshData(): Promise<void> {
         language: selectedLanguage,
         since: selectedSince,
         month: selectedMonth || undefined,
-        day: selectedDay || undefined,
-        groupBy: selectedGroup
+        day: selectedDay || undefined
       });
 
       snapshots = response.data;
-      groupedResult = response.groupedBy && response.groups ? response.groups : null;
       status = "success";
       lastFetchedAt = new Date().toLocaleString();
     } catch (error) {
@@ -202,28 +194,6 @@ $: if ($user && !$loadingUser) {
         <p class="text-xs text-muted-foreground">Selected date: {selectedDay}</p>
       </div>
 
-      <div class="grid gap-4 md:grid-cols-2">
-        <div class="space-y-2 md:col-span-2">
-          <Label for="group-select">Group results</Label>
-          <Select
-            type="single"
-            bind:value={selectedGroup}
-            items={groupOptions}
-          >
-            <SelectTrigger id="group-select" class="w-full justify-between">
-              <span class="text-sm capitalize" data-slot="select-value">
-                {groupOptions.find(option => option.value === selectedGroup)?.label ?? "Group by"}
-              </span>
-            </SelectTrigger>
-            <SelectContent class="w-full min-w-[220px]">
-              {#each groupOptions as option}
-                <SelectItem value={option.value}>{option.label}</SelectItem>
-              {/each}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       <div class="flex flex-col gap-4 border-t border-dashed border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-col gap-2">
           <span class={`w-max rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[status]}`}>
@@ -248,7 +218,7 @@ $: if ($user && !$loadingUser) {
   <CardHeader class="space-y-2">
     <CardTitle>Snapshot results</CardTitle>
     <CardDescription>
-      {selectedLanguage} · {selectedSince} · {selectedGroup === "day" ? "grouped by day" : "grouped by month"}
+      {selectedLanguage} · {selectedSince}
     </CardDescription>
   </CardHeader>
   <CardContent class="space-y-6">
@@ -269,106 +239,46 @@ $: if ($user && !$loadingUser) {
         No snapshots yet. Adjust filters and click “Fetch snapshots”.
       </div>
     {:else}
-      {#if groupedResult}
-        {#each Object.entries(groupedResult) as [groupKey, groupSnapshots]}
-          <section class="space-y-4 rounded-3xl border border-border/60 bg-background/60 p-5">
-            <div class="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                  {selectedGroup === "day" ? "Day group" : "Month group"}
-                </p>
-                <h3 class="text-2xl font-semibold tracking-tight text-foreground">{groupKey}</h3>
-                <p class="text-sm text-muted-foreground">
-                  {groupSnapshots.length} snapshot{groupSnapshots.length === 1 ? "" : "s"}
-                </p>
-              </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        {#each snapshots as snapshot}
+          {@const topItems = snapshot.items.slice(0, 5)}
+          <div class="rounded-2xl border border-border/60 bg-white/90 p-4 shadow-sm">
+            <div class="space-y-1">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {snapshot.day}
+              </p>
+              <h4 class="text-lg font-semibold capitalize">{snapshot.language}</h4>
+              <p class="text-sm text-muted-foreground">
+                Trending repositories · {snapshot.since} · {snapshot.items.length} repos
+              </p>
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              {#each groupSnapshots as snapshot}
-                {@const topItems = snapshot.items.slice(0, 5)}
-                <div class="rounded-2xl border border-border/60 bg-white/90 p-4 shadow-sm">
-                  <div class="space-y-1">
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                      {snapshot.day}
-                    </p>
-                    <h4 class="text-lg font-semibold capitalize">{snapshot.language}</h4>
-                    <p class="text-sm text-muted-foreground">
-                      Trending repositories · {snapshot.since} · {snapshot.items.length} repos
-                    </p>
-                  </div>
-                  <ul class="mt-4 space-y-3 text-sm">
-                    {#if topItems.length === 0}
-                      <li class="text-muted-foreground">No repositories matched the thresholds.</li>
-                    {:else}
-                      {#each topItems as repo}
-                        <li class="flex items-start justify-between gap-3 rounded-xl border border-border/40 bg-muted/10 p-3">
-                          <div class="space-y-1">
-                            <a
-                              href={repo.url ?? "#"}
-                              target="_blank"
-                              rel="noreferrer"
-                              class="font-medium text-primary hover:underline"
-                            >
-                              {repo.url ?? "Unknown repo"}
-                            </a>
-                            <p class="text-xs text-muted-foreground">
-                              {repo.description ?? "No description"}
-                            </p>
-                          </div>
-                          <span class="text-xs font-semibold text-muted-foreground">
-                            {(repo.starsSince ?? 0).toLocaleString()}★
-                          </span>
-                        </li>
-                      {/each}
-                    {/if}
-                  </ul>
-                </div>
-              {/each}
-            </div>
-          </section>
+            <ul class="mt-4 space-y-3 text-sm">
+              {#if topItems.length === 0}
+                <li class="text-muted-foreground">No repositories matched the thresholds.</li>
+              {:else}
+                {#each topItems as repo}
+                  <li class="flex items-start justify-between gap-3 rounded-xl border border-border/40 bg-muted/10 p-3">
+                    <div class="space-y-1">
+                      <a
+                        href={repo.url ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        class="font-medium text-primary hover:underline"
+                      >
+                        {repo.url ?? "Unknown repo"}
+                      </a>
+                      <p class="text-xs text-muted-foreground">{repo.description ?? "No description"}</p>
+                    </div>
+                    <span class="text-xs font-semibold text-muted-foreground">
+                      {(repo.starsSince ?? 0).toLocaleString()}★
+                    </span>
+                  </li>
+                {/each}
+              {/if}
+            </ul>
+          </div>
         {/each}
-      {:else}
-        <div class="grid gap-4 md:grid-cols-2">
-          {#each snapshots as snapshot}
-            {@const topItems = snapshot.items.slice(0, 5)}
-            <div class="rounded-2xl border border-border/60 bg-white/90 p-4 shadow-sm">
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {snapshot.day}
-                </p>
-                <h4 class="text-lg font-semibold capitalize">{snapshot.language}</h4>
-                <p class="text-sm text-muted-foreground">
-                  Trending repositories · {snapshot.since} · {snapshot.items.length} repos
-                </p>
-              </div>
-              <ul class="mt-4 space-y-3 text-sm">
-                {#if topItems.length === 0}
-                  <li class="text-muted-foreground">No repositories matched the thresholds.</li>
-                {:else}
-                  {#each topItems as repo}
-                    <li class="flex items-start justify-between gap-3 rounded-xl border border-border/40 bg-muted/10 p-3">
-                      <div class="space-y-1">
-                        <a
-                          href={repo.url ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          class="font-medium text-primary hover:underline"
-                        >
-                          {repo.url ?? "Unknown repo"}
-                        </a>
-                        <p class="text-xs text-muted-foreground">{repo.description ?? "No description"}</p>
-                      </div>
-                      <span class="text-xs font-semibold text-muted-foreground">
-                        {(repo.starsSince ?? 0).toLocaleString()}★
-                      </span>
-                    </li>
-                  {/each}
-                {/if}
-              </ul>
-            </div>
-          {/each}
-        </div>
-      {/if}
+      </div>
     {/if}
   </CardContent>
 </Card>
