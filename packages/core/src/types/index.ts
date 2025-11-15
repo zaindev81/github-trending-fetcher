@@ -1,5 +1,4 @@
 export type Since = "daily" | "weekly" | "monthly";
-export type TypeKind = "repositories" | "developers";
 
 export interface TrendingRepo {
   owner: string;
@@ -27,7 +26,6 @@ export interface FetchOptions {
 
 export interface TrendingSnapshot {
   language: string;
-  type: TypeKind;
   since: Since;
   month: string;
   day: string;
@@ -36,7 +34,6 @@ export interface TrendingSnapshot {
 
 export interface TrendingQuery {
   language?: string;
-  type?: TypeKind;
   since?: Since;
   month?: string;
   day?: string;

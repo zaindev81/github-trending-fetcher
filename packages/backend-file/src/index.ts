@@ -1,5 +1,4 @@
 import {
-  type TypeKind,
   type Since,
   type SlimRepo,
   STAR_THRESHOLDS,
@@ -11,7 +10,6 @@ import {
 } from "@github-trending/core";
 import { FileTrendingStore } from "./fileStorage.js";
 
-const type = getArg("type", "repositories") as TypeKind;
 const since = getArg("since", "daily") as Since;
 const lang = getArg("lang", null);
 const spoken = getArg("spoken", null);
@@ -20,7 +18,7 @@ async function main(): Promise<void> {
   const store = new FileTrendingStore();
 
   const handleOneLanguage = async (language: string) => {
-    const data = await fetchTrending(type, { language, since, spokenLanguageCode: spoken });
+    const data = await fetchTrending({ language, since, spokenLanguageCode: spoken });
     const threshold = STAR_THRESHOLDS[language] ?? 0;
 
     const filtered = data.filter(repo => (repo.starsSince ?? 0) >= threshold);
@@ -37,7 +35,6 @@ async function main(): Promise<void> {
 
     await store.upsert({
       language,
-      type,
       since,
       month: monthKey,
       day: today,

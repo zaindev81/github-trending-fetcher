@@ -34,6 +34,20 @@ function getMonthFromFilePath(filePath: string): string | null {
   return /^\d{4}-\d{2}$/.test(filename) ? filename : null;
 }
 
+function sanitizeSnapshot(language: string, fallbackMonth: string, entry: any): TrendingSnapshot {
+  const since = entry?.since === "weekly" || entry?.since === "monthly" ? entry.since : "daily";
+  const month = typeof entry?.month === "string" ? entry.month : fallbackMonth;
+  const day = typeof entry?.day === "string" ? entry.day : `${month}-01`;
+
+  return {
+    language: typeof entry?.language === "string" ? entry.language : language,
+    since,
+    month,
+    day,
+    items: Array.isArray(entry?.items) ? (entry.items as SlimRepo[]) : []
+  };
+}
+
 function normalizeData(parsed: any, filePath: string): ExistingData {
   const defaultData = createDefaultData();
   if (!parsed || typeof parsed !== "object") return defaultData;
@@ -47,14 +61,13 @@ function normalizeData(parsed: any, filePath: string): ExistingData {
     }
 
     if (value.some(item => item && typeof item === "object" && "items" in item)) {
-      // Already in snapshot format
-      result[language] = value as TrendingSnapshot[];
+      // Already in snapshot format (strip legacy type field if present)
+      result[language] = value.map(entry => sanitizeSnapshot(language, monthFromFile, entry));
     } else {
       // Legacy format: array of SlimRepo entries
       result[language] = [
         {
           language,
-          type: "repositories",
           since: "daily",
           month: monthFromFile,
           day: `${monthFromFile}-01`,
@@ -89,7 +102,6 @@ function writeFile(filePath: string, data: ExistingData): void {
 
 function matchesQuery(snapshot: TrendingSnapshot, query: TrendingQuery): boolean {
   if (query.language && snapshot.language !== query.language) return false;
-  if (query.type && snapshot.type !== query.type) return false;
   if (query.since && snapshot.since !== query.since) return false;
   if (query.month && snapshot.month !== query.month) return false;
   if (query.day && snapshot.day !== query.day) return false;
@@ -104,10 +116,7 @@ export class FileTrendingStore implements TrendingStore {
     const languageEntries = data[snapshot.language] ?? [];
 
     const idx = languageEntries.findIndex(
-      entry =>
-        entry.day === snapshot.day &&
-        entry.type === snapshot.type &&
-        entry.since === snapshot.since
+      entry => entry.day === snapshot.day && entry.since === snapshot.since
     );
 
     if (idx >= 0) {

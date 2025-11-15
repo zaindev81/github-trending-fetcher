@@ -1,14 +1,11 @@
 import * as cheerio from "cheerio";
-import type { TypeKind, FetchOptions, TrendingRepo } from "./types/index.js";
+import type { FetchOptions, TrendingRepo } from "./types/index.js";
 import { UA } from "./constants.js";
 import { buildUrl, parseStarsSinceText } from "./utils/index.js";
 
-export async function fetchTrending(
-  type: TypeKind = "repositories",
-  opts: FetchOptions = {}
-): Promise<TrendingRepo[]> {
+export async function fetchTrending(opts: FetchOptions = {}): Promise<TrendingRepo[]> {
   const { since = "daily" } = opts;
-  const url = buildUrl(type, opts);
+  const url = buildUrl(opts);
 
   const res = await fetch(url, {
     headers: {

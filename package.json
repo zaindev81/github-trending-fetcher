@@ -4,14 +4,18 @@
   "private": true,
   "description": "Workspace housing the shared GitHub trending core, file backend, and Firebase backend.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "build": "npm run build:core && npm run build:firebase",
+    "build": "npm run build:core && npm run build:firebase && npm run build:frontend",
     "build:core": "npm --workspace @github-trending/core run build",
     "start:file": "npm run build:core && npm --workspace @github-trending/backend-file run start --",
     "dev:file": "npm run build:core && npm --workspace @github-trending/backend-file run dev --",
-    "build:firebase": "npm --workspace @github-trending/backend-firebase run build"
+    "build:firebase": "npm --workspace @github-trending/backend-firebase run build",
+    "build:frontend": "npm --workspace frontend run build",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "lint:frontend": "npm --workspace frontend run check"
   },
   "engines": {
     "node": ">=22"

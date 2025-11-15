@@ -4,7 +4,6 @@ import { logger } from "firebase-functions";
 import {
   type Since,
   type SlimRepo,
-  type TypeKind,
   type TrendingSnapshot,
   type TrendingQuery,
   MULTI_LANGS,
@@ -17,7 +16,6 @@ import { FirestoreTrendingStore } from "./firestoreStore.js";
 
 const store = new FirestoreTrendingStore();
 const DEFAULT_SCHEDULE = "0 2 * * *"; // every day at 02:00 UTC
-const DEFAULT_TYPE: TypeKind = "repositories";
 const DEFAULT_SINCE: Since = "daily";
 
 function resolveLanguages(): readonly string[] {
@@ -37,9 +35,9 @@ function resolveSince(): Since {
   return DEFAULT_SINCE;
 }
 
-async function syncLanguage(language: string, since: Since, type: TypeKind): Promise<void> {
+async function syncLanguage(language: string, since: Since): Promise<void> {
   const spokenLanguageCode = process.env.SPOKEN_LANG || null;
-  const data = await fetchTrending(type, { language, since, spokenLanguageCode });
+  const data = await fetchTrending({ language, since, spokenLanguageCode });
   const threshold = STAR_THRESHOLDS[language] ?? 0;
   const filtered = data.filter(repo => (repo.starsSince ?? 0) >= threshold);
 
@@ -55,7 +53,6 @@ async function syncLanguage(language: string, since: Since, type: TypeKind): Pro
 
   const snapshot: TrendingSnapshot = {
     language,
-    type,
     since,
     month: monthKey,
     day: today,
@@ -74,11 +71,10 @@ export const syncTrendingJob = onSchedule(
   async () => {
     const languages = resolveLanguages();
     const since = resolveSince();
-    const type = (process.env.SYNC_TYPE as TypeKind) || DEFAULT_TYPE;
 
     for (const language of languages) {
       try {
-        await syncLanguage(language, since, type);
+        await syncLanguage(language, since);
       } catch (error) {
         logger.error(`Failed to sync ${language}`, error);
       }
@@ -89,9 +85,6 @@ export const syncTrendingJob = onSchedule(
 function parseQuery(req: FunctionsRequest): TrendingQuery {
   const query: TrendingQuery = {};
   if (typeof req.query.language === "string") query.language = req.query.language;
-  if (typeof req.query.type === "string" && (req.query.type === "repositories" || req.query.type === "developers")) {
-    query.type = req.query.type;
-  }
   if (typeof req.query.since === "string" && (req.query.since === "daily" || req.query.since === "weekly" || req.query.since === "monthly")) {
     query.since = req.query.since;
   }
@@ -100,7 +93,7 @@ function parseQuery(req: FunctionsRequest): TrendingQuery {
   return query;
 }
 
-type GroupKey = "month" | "day" | "type";
+type GroupKey = "month" | "day";
 
 function buildGrouping(
   snapshots: TrendingSnapshot[],
@@ -118,7 +111,7 @@ function buildGrouping(
 export const getTrendingApi = onRequest(async (req, res) => {
   const query = parseQuery(req);
   const groupParam =
-    typeof req.query.groupBy === "string" && ["month", "day", "type"].includes(req.query.groupBy)
+    typeof req.query.groupBy === "string" && ["month", "day"].includes(req.query.groupBy)
       ? (req.query.groupBy as GroupKey)
       : undefined;
 
