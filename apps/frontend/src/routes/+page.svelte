@@ -1,5 +1,4 @@
 <script lang="ts">
-import { Button } from "$lib/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,7 +13,6 @@ import { cn } from "$lib/utils";
 import { getLocalTimeZone, today, type DateValue } from "@internationalized/date";
 import {
   fetchTrendingSnapshots,
-    type TrendGroupKey,
     type TrendingSnapshot
 } from "$lib/api";
 import { loadingUser, user } from "$lib/stores/auth";

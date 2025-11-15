@@ -7,6 +7,7 @@ import {
 	signOut,
 	type UserCredential
 } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { env } from '$env/dynamic/public';
 
 const firebaseConfig = {
@@ -27,6 +28,7 @@ function createApp(): FirebaseApp | null {
 
 const app = createApp();
 export const auth = app ? getAuth(app) : null;
+export const firestore: Firestore | null = app ? getFirestore(app) : null;
 
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: 'select_account' });
